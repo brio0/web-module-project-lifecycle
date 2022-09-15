@@ -7,44 +7,96 @@ const URL = 'http://localhost:9000/api/todos'
 
 export default class App extends React.Component {
   state = {
-    todo: [],
-    text: ''
-  }
-  handleChange = e => {
-    this.setState({
-      ...this.state,
-      text: e.target.value
-    })
+    todos: [],
+    error: '',
+    textInput: '',
+    displayCompleteds: true,
   }
 
-  handleSubmit = e => {
-    e.preventdefault()
-
+  textInputChange = e => {
+    const { value } = e.target
+    this.setState({ ...this.state, textInput: value })
   }
 
-  addTodos = () => {
+  resetForm = () => this.setState({ ...this.state, textInput: '' })
 
-  }
+  setResponseError = err => this.setState({ ...this.state, error: err.response.data.message })
 
-  componentDidmount() {
-    axios.get(URL)
+  addTodo = () => {
+    axios.post(URL, { name: this.state.textInput })
       .then(res => {
-        this.setState({
-          ...this.state,
-          todo: res.data.data
-        })
+        this.fetchAllTodos()
+        this.resetForm()
       })
       .catch(err => {
-        console.log({ err })
+        this.setResponseError()
       })
   }
+  fetchAllTodos = () => {
+    axios.get(URL)
+      .then(res => {
+        this.setState({ ...this.state, todos: res.data.data })
+      })
+      .catch(this.setResponseError)
+  }
+  toggleCompleted = id => () => {
+    axios.patch(`${URL}/${id}`)
+      .then(res => {
+        this.setState({
+          ...this.state, todos: this.state.todos.map(item => {
+            if (item.id !== id) return item
+            return res.data.data
+          })
+        })
+      })
+  }
+
+  onSubmit = e => {
+    e.preventDefault()
+    this.addTodo()
+  }
+
+  toggleDisplayCompleteds = () => {
+    this.setState({ ...this.state, displayCompleteds: !this.state.displayCompleteds })
+  }
+
+  componentDidMount() {
+    this.fetchAllTodos()
+  }
+
 
   render() {
     return (
       <div>
-        <TodoList />
-        <Form />
+        <div id="error"> Error: {this.state.error}</div>
+        <div id="todos">
+          <h2>Todos:</h2>
+          {
+            this.state.todos.reduce((acc, td) => {
+              if (this.state.displayCompleteds || !td.completed) return acc.concat(
+                <div onClick={this.toggleCompleted(td.id)} key={td.id}>{td.name}{td.completed ? ' -done-' : ''}</div>
+              )
+              return acc
+
+            }, [])
+          }
+        </div>
+        <div>
+          <form id="todoForm" onSubmit={this.onSubmit}>
+            <input value={this.state.textInput} onChange={this.textInputChange} type="text" placeholder="type todo"></input>
+            <input type="submit"></input>
+          </form>
+          <button onClick={this.toggleDisplayCompleteds}>{this.state.displayCompleteds ? "hide" : "show"} comleteds</button>
+        </div>
       </div>
     )
   }
 }
+
+
+
+
+
+
+
+
